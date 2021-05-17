@@ -9,6 +9,8 @@ use std::{error::Error, time::SystemTime};
 const PLACE_SLEEP: Duration = Duration::from_millis(100);
 const CENTER_SLEEP: Duration = Duration::from_millis(100);
 
+const AUTHORITY: &str = "www.doctolib.fr";
+const ACCEPT: &str = "text/json";
 const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36";
 
 #[derive(Deserialize, Debug, Clone)]
@@ -208,9 +210,9 @@ async fn get_center_data(
     let url = format!("https://www.doctolib.fr/booking/{}.json", center_name);
     let res = client
         .get(&url)
-        .header("authority", "www.doctolib.fr")
+        .header("authority", AUTHORITY)
         .header("user-agent", USER_AGENT)
-        .header("accept", "text/json")
+        .header("accept", ACCEPT)
         .send()
         .await?;
 
@@ -243,9 +245,9 @@ async fn get_availability(
     let res = client
         .get(url)
         .form(&params)
-        .header("authority", "www.doctolib.fr")
+        .header("authority", AUTHORITY)
         .header("user-agent", USER_AGENT)
-        .header("accept", "text/json")
+        .header("accept", ACCEPT)
         .send()
         .await?;
 

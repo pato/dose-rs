@@ -6,7 +6,6 @@ use serde::Deserialize;
 use std::time::Duration;
 use std::{error::Error, time::SystemTime};
 
-const DEBUG: bool = true;
 const PLACE_SLEEP: Duration = Duration::from_millis(100);
 const CENTER_SLEEP: Duration = Duration::from_millis(100);
 
@@ -74,27 +73,36 @@ async fn main() {
         "centre-de-vaccination-covid-19-stade-de-france",
     ];
 
-    std::process::exit(match find_availability(centers).await {
-        Ok(0) => 2,
+    let args = std::env::args();
+    let debug = args
+        .into_iter()
+        .any(|arg| arg == "--verbose" || arg == "-v");
+
+    std::process::exit(match find_availability(centers, debug).await {
+        Ok(0) => {
+            println!("No available appointments found");
+            2
+        }
         Ok(availability) => {
-            println!("Successfully found vaccination slots! count={}", availability);
+            println!(
+                "Successfully found vaccination slots! count={}",
+                availability
+            );
             0
         }
         Err(err) => {
-            eprintln!("error: {:?}", err);
+            eprintln!("Encountered an unexpected err! err={:?}", err);
             1
         }
     });
 }
 
-async fn find_availability(centers: Vec<&str>) -> Result<u32, Box<dyn Error>> {
+async fn find_availability(centers: Vec<&str>, verbose: bool) -> Result<u32, Box<dyn Error>> {
     let client = reqwest::Client::builder().build()?;
-
-    // let centers = vec!["vaccinodrome-covid-19-porte-de-versailles"];
 
     let mut total_availability_found = 0;
     for center in centers {
-        total_availability_found += check_center(&client, center).await?;
+        total_availability_found += check_center(&client, center, verbose).await?;
         tokio::time::sleep(CENTER_SLEEP).await;
     }
 
@@ -110,6 +118,7 @@ fn iso_date() -> String {
 async fn check_center(
     client: &Client,
     center_name: &str,
+    verbose: bool,
 ) -> Result<u32, Box<dyn Error>> {
     let res = get_center_data(client, center_name).await?;
 
@@ -122,8 +131,7 @@ async fn check_center(
         })
         .collect::<Vec<_>>();
 
-
-    if DEBUG {
+    if verbose {
         println!(
             "\nChecking center: {} found motives: {:?}",
             center_name,
@@ -135,7 +143,9 @@ async fn check_center(
     }
 
     if motives.is_empty() {
-        println!("No motives found.");
+        if verbose {
+            eprintln!("No motives found.");
+        }
         return Ok(0);
     }
 
@@ -155,7 +165,9 @@ async fn check_center(
             .collect::<Vec<_>>();
 
         if agendas.is_empty() {
-            println!("No agendas found!");
+            if verbose {
+                eprintln!("No agendas found!");
+            }
             continue;
         }
 
@@ -175,7 +187,7 @@ async fn check_center(
             );
             total_availability_found += availabilities.total;
         } else {
-            if DEBUG {
+            if verbose {
                 println!(
                     "No available slots. Place={} Zip={} Address={}",
                     place.formal_name, place.zipcode, place.address
@@ -238,17 +250,12 @@ async fn get_availability(
         .await?;
 
     let res = if !res.status().is_success() {
-        println!("Was not a success!");
-        println!("PARAMS: {:?}", &params);
-        println!("RAW: {:?}", res);
+        eprintln!("Was not a success!");
+        eprintln!("PARAMS: {:?}", &params);
+        eprintln!("RAW: {:?}", res);
         let res = res.text().await?;
-        println!("BODY: {:?}", res);
-        Availabilities {
-            total: 0,
-            // reason: "Error performing request".to_owned(),
-            // message: "Error performing request".to_owned(),
-            // number_future_vaccinations: 0,
-        }
+        eprintln!("BODY: {:?}", res);
+        Availabilities { total: 0 }
     } else {
         res.json::<Availabilities>().await?
     };

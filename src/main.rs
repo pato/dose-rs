@@ -52,9 +52,9 @@ struct Agenda {
 #[derive(Deserialize, Debug, Clone)]
 struct Availabilities {
     total: u32,
-    reason: String,
-    message: String,
-    number_future_vaccinations: u32,
+    // reason: String,
+    // message: String,
+    // number_future_vaccinations: u32,
 }
 
 #[tokio::main]
@@ -153,14 +153,14 @@ async fn check_center(
 
         if availabilities.total > 0 {
             println!(
-                "FOUND AVAILABLE SLOTS. Message={} Place={} Zip={} Address={}",
-                availabilities.message, place.formal_name, place.zipcode, place.address
+                "FOUND AVAILABLE SLOTS. Place={} Zip={} Address={}",
+                place.formal_name, place.zipcode, place.address
             );
         } else {
             if DEBUG {
                 println!(
-                    "No available slots. Reason={} Place={} Zip={} Address={}",
-                    availabilities.message, place.formal_name, place.zipcode, place.address
+                    "No available slots. Place={} Zip={} Address={}",
+                    place.formal_name, place.zipcode, place.address
                 );
             }
         }
@@ -226,9 +226,9 @@ async fn get_availability(
         println!("BODY: {:?}", res);
         Availabilities {
             total: 0,
-            reason: "Error performing request".to_owned(),
-            message: "Error performing request".to_owned(),
-            number_future_vaccinations: 0,
+            // reason: "Error performing request".to_owned(),
+            // message: "Error performing request".to_owned(),
+            // number_future_vaccinations: 0,
         }
     } else {
         res.json::<Availabilities>().await?

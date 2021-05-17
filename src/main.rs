@@ -58,9 +58,7 @@ struct Availabilities {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let client = reqwest::Client::builder().build()?;
-
+async fn main() {
     let centers = vec![
         "centre-de-vaccination-covid-19-ville-de-paris",
         "centre-covid19-paris-5",
@@ -75,14 +73,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "centre-de-vaccination-covid-19-paris-17eme",
         "centre-de-vaccination-covid-19-stade-de-france",
     ];
+
+    std::process::exit(match find_availability(centers).await {
+        Ok(0) => 2,
+        Ok(availability) => {
+            println!("Successfully found vaccination slots! count={}", availability);
+            0
+        }
+        Err(err) => {
+            eprintln!("error: {:?}", err);
+            1
+        }
+    });
+}
+
+async fn find_availability(centers: Vec<&str>) -> Result<u32, Box<dyn Error>> {
+    let client = reqwest::Client::builder().build()?;
+
     // let centers = vec!["vaccinodrome-covid-19-porte-de-versailles"];
 
+    let mut total_availability_found = 0;
     for center in centers {
-        check_center(&client, center).await?;
+        total_availability_found += check_center(&client, center).await?;
         tokio::time::sleep(CENTER_SLEEP).await;
     }
 
-    Ok(())
+    Ok(total_availability_found)
 }
 
 fn iso_date() -> String {
@@ -94,7 +110,7 @@ fn iso_date() -> String {
 async fn check_center(
     client: &Client,
     center_name: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<u32, Box<dyn Error>> {
     let res = get_center_data(client, center_name).await?;
 
     let motives = res
@@ -120,9 +136,10 @@ async fn check_center(
 
     if motives.is_empty() {
         println!("No motives found.");
-        return Ok(());
+        return Ok(0);
     }
 
+    let mut total_availability_found = 0_u32;
     for place in &res.data.places {
         let practice_id = place.practice_ids.get(0).cloned().unwrap_or(0);
         let agendas = res
@@ -156,6 +173,7 @@ async fn check_center(
                 "FOUND AVAILABLE SLOTS. Place={} Zip={} Address={}",
                 place.formal_name, place.zipcode, place.address
             );
+            total_availability_found += availabilities.total;
         } else {
             if DEBUG {
                 println!(
@@ -167,7 +185,8 @@ async fn check_center(
 
         tokio::time::sleep(PLACE_SLEEP).await;
     }
-    Ok(())
+
+    Ok(total_availability_found)
 }
 
 async fn get_center_data(

@@ -76,11 +76,11 @@ async fn main() {
     ];
 
     let args = std::env::args();
-    let debug = args
+    let verbose = args
         .into_iter()
         .any(|arg| arg == "--verbose" || arg == "-v");
 
-    std::process::exit(match find_availability(centers, debug).await {
+    std::process::exit(match find_availability(centers, verbose).await {
         Ok(0) => {
             println!("No available appointments found");
             2
